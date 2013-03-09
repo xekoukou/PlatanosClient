@@ -12,7 +12,7 @@ cmake_minimum_required (VERSION 2.8)
 
     include_directories ("${PROJECT_SOURCE_DIR}/tree")
 
-    add_executable (node_exec
+    add_executable (broker
                 hkey.c
                 zk_common.c
                 config.c
@@ -20,7 +20,8 @@ cmake_minimum_required (VERSION 2.8)
                 nodes.c
                 router.c
                 broker.c
+                update.c
                 zookeeper.c zk_updater.c main.c)
 
-    target_link_libraries (node_exec MurmurHash zookeeper_mt procps czmq 
+    target_link_libraries (broker MurmurHash zookeeper_mt procps czmq 
                        tcmalloc)

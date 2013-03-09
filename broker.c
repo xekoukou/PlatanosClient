@@ -387,10 +387,13 @@ broker_fn (void *arg)
             broker_update (update, sub);
         }
         if (pollitems[1].revents & ZMQ_POLLIN) {
-            broker_forward ();
+         zmsg_t *msg=zmsg_recv(dealer_back);
+                  zmsg_send(&msg,router_front);
         }
         if (pollitems[2].revents & ZMQ_POLLIN) {
-            broker_backward ();
-        }
+         zmsg_t *msg=zmsg_recv(dealer_front);
+                  zmsg_send(&msg,router_back);
+        
+}
     }
 }
