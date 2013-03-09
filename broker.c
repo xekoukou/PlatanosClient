@@ -241,77 +241,68 @@ broker_update (update_t * update, void *sub)
     int db = 0;
 
     fprintf (stderr, "\nbroker_update:I have received a sub msg");
-    zframe_t *sub_frame = zmsg_pop (msg);
-    zframe_destroy (&sub_frame);
-
     zframe_t *db_frame = zmsg_pop (msg);
     if (strcmp ("db", (char *) zframe_data (db_frame)) == 0) {
-        zframe_destroy (&db_frame);
         db = 1;
     }
-    else {
-        zframe_destroy (&db_frame);
 
-        zframe_t *id = zmsg_pop (msg);
-        if (memcmp (zframe_data (id), &(update->id), sizeof (unsigned int)) ==
-            0) {
+    zframe_destroy (&db_frame);
+
+    zframe_t *id = zmsg_pop (msg);
+    if (memcmp (zframe_data (id), &(update->id), sizeof (unsigned int)) == 0) {
 //lazy pirate reconfirm update
-            zframe_send (&id, update->dealer, 0);
-            zframe_destroy (&id);
-            zmsg_destroy (&msg);
-            fprintf (stderr,
-                     "\nbroker_update:It was a previous update, resending confirmation");
+        zframe_send (&id, update->dealer, 0);
+        zframe_destroy (&id);
+        zmsg_destroy (&msg);
+        fprintf (stderr,
+                 "\nbroker_update:It was a previous update, resending confirmation");
 
+    }
+    else {
+        zframe_t *frame = zmsg_pop (msg);
+        if (memcmp
+            (zframe_data (frame), "remove_node", zframe_size (frame)) == 0) {
+            remove_node (update, msg, db);
         }
         else {
-            zframe_t *frame = zmsg_pop (msg);
             if (memcmp
-                (zframe_data (frame), "remove_node",
-                 zframe_size (frame)) == 0) {
-                remove_node (update, msg, db);
+                (zframe_data (frame), "add_node", zframe_size (frame)) == 0) {
+                add_node (update, msg, db);
             }
             else {
                 if (memcmp
-                    (zframe_data (frame), "add_node",
+                    (zframe_data (frame), "st_piece",
                      zframe_size (frame)) == 0) {
-                    add_node (update, msg, db);
+                    update_st_piece (update, msg, db);
                 }
                 else {
                     if (memcmp
-                        (zframe_data (frame), "st_piece",
+                        (zframe_data (frame), "n_pieces",
                          zframe_size (frame)) == 0) {
-                        update_st_piece (update, msg, db);
+                        update_n_pieces (update, msg, db);
                     }
                     else {
+
                         if (memcmp
-                            (zframe_data (frame), "n_pieces",
+                            (zframe_data (frame), "delete_node",
                              zframe_size (frame)) == 0) {
-                            update_n_pieces (update, msg, db);
+                            db_delete_node (update, msg);
                         }
-                        else {
-
-                            if (memcmp
-                                (zframe_data (frame), "delete_node",
-                                 zframe_size (frame)) == 0) {
-                                db_delete_node (update, msg);
-                            }
-
-                        }
-
 
                     }
+
+
                 }
             }
-
-
-            zframe_destroy (&frame);
-
-
-            zframe_send (&id, update->dealer, 0);
-            fprintf (stderr,
-                     "\nbroker_update:I have sent confirmation to sub msg");
-
         }
+
+
+        zframe_destroy (&frame);
+
+
+        zframe_send (&id, update->dealer, 0);
+        fprintf (stderr, "\nbroker_update:I have sent confirmation to sub msg");
+
     }
 
     return 0;
@@ -331,7 +322,8 @@ broker_fn (void *arg)
     void *dealer = zsocket_new (ctx, ZMQ_DEALER);
 
 
-    zmq_setsockopt (sub, ZMQ_SUBSCRIBE, "all", strlen ("all") + 1);
+    zmq_setsockopt (sub, ZMQ_SUBSCRIBE, "w", strlen ("w") + 1);
+    zmq_setsockopt (sub, ZMQ_SUBSCRIBE, "db", strlen ("db") + 1);
 
 
     rc = zsocket_connect (sub, "tcp://127.0.0.1:49152");
@@ -387,13 +379,13 @@ broker_fn (void *arg)
             broker_update (update, sub);
         }
         if (pollitems[1].revents & ZMQ_POLLIN) {
-         zmsg_t *msg=zmsg_recv(dealer_back);
-                  zmsg_send(&msg,router_front);
+            zmsg_t *msg = zmsg_recv (dealer_back);
+            zmsg_send (&msg, router_front);
         }
         if (pollitems[2].revents & ZMQ_POLLIN) {
-         zmsg_t *msg=zmsg_recv(dealer_front);
-                  zmsg_send(&msg,router_back);
-        
-}
+            zmsg_t *msg = zmsg_recv (dealer_front);
+            zmsg_send (&msg, router_back);
+
+        }
     }
 }

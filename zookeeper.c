@@ -172,8 +172,6 @@ ozookeeper_update (ozookeeper_t * ozookeeper, zmsg_t ** msg, int db)
             else {
                 zmsg_push (msg_to_send, zframe_new ("w", strlen ("w") + 1));
             }
-
-            zmsg_push (msg_to_send, zframe_new ("all", strlen ("all") + 1));
             zmsg_send (&msg_to_send, pub);
 
             fprintf (stderr, "\nzookeeper_update_one: I Have sent a sub msg");
