@@ -31,12 +31,13 @@ struct update_t
     void *dealer;               //used to confirm the updates to the ozookeeper object
     router_t *router;
     router_t *db_router;
+    void *socket;
 };
 
 typedef struct update_t update_t;
 
 void update_init (update_t ** update, void *dealer, router_t * router,
-                  router_t * db_router);
+                  router_t * db_router, void *socket);
 
 
 

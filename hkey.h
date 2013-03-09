@@ -18,17 +18,26 @@
 */
 
 
-#include "update.h"
 
-void
-update_init (update_t ** update, void *dealer, router_t * router,
-             router_t * db_router, void *socket)
+
+
+#ifndef OCTOPUS_HKEY_H_
+#define OCTOPUS_HKEY_H_
+
+#include <stdint.h>
+#include <stddef.h>
+
+
+struct _hkey_t
 {
-    *update = malloc (sizeof (update_t));
-    (*update)->id = 0;
-    (*update)->dealer = dealer;
-    (*update)->router = router;
-    (*update)->db_router = db_router;
-    (*update)->socket = socket;
+    uint64_t prefix;
+    uint64_t suffix;
+};
 
-}
+
+int cmp_hkey_t (struct _hkey_t *first, struct _hkey_t *second);
+
+
+typedef struct _hkey_t hkey_t;
+
+#endif

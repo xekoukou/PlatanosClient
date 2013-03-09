@@ -18,17 +18,23 @@
 */
 
 
-#include "update.h"
+#ifndef OCTOPUS_NODES_H_
+#define OCTOPUS_NODES_H_
 
-void
-update_init (update_t ** update, void *dealer, router_t * router,
-             router_t * db_router, void *socket)
-{
-    *update = malloc (sizeof (update_t));
-    (*update)->id = 0;
-    (*update)->dealer = dealer;
-    (*update)->router = router;
-    (*update)->db_router = db_router;
-    (*update)->socket = socket;
+#include"hash/khash.h"
+#include"node.h"
 
-}
+void nodes_init (khash_t (nodes_t) ** nodes);
+
+void nodes_put (khash_t (nodes_t) * nodes, node_t * node);
+
+//deletes the entry if present
+//the node is deleted bu router_delete
+void nodes_delete (khash_t (nodes_t) * nodes, char *key);
+
+//returns NULL if not found
+node_t *nodes_search (khash_t (nodes_t) * nodes, char *key);
+
+
+
+#endif

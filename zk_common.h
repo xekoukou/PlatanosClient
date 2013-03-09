@@ -17,18 +17,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef OCTOPUS_ZK_COMMON_H
+#define OCTOPUS_ZK_COMMON_H
 
-#include "update.h"
 
-void
-update_init (update_t ** update, void *dealer, router_t * router,
-             router_t * db_router, void *socket)
-{
-    *update = malloc (sizeof (update_t));
-    (*update)->id = 0;
-    (*update)->dealer = dealer;
-    (*update)->router = router;
-    (*update)->db_router = db_router;
-    (*update)->socket = socket;
+char *last_path (const char *path);
+void part_path (const char *path, int location, char **start, int *size);
 
-}
+#endif

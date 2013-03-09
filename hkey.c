@@ -18,17 +18,36 @@
 */
 
 
-#include "update.h"
+#include"hkey.h"
 
-void
-update_init (update_t ** update, void *dealer, router_t * router,
-             router_t * db_router, void *socket)
+
+
+
+
+int
+cmp_hkey_t (struct _hkey_t *first, struct _hkey_t *second)
 {
-    *update = malloc (sizeof (update_t));
-    (*update)->id = 0;
-    (*update)->dealer = dealer;
-    (*update)->router = router;
-    (*update)->db_router = db_router;
-    (*update)->socket = socket;
+
+    if (first->prefix > second->prefix) {
+        return 1;
+    }
+    else {
+        if (first->prefix < second->prefix) {
+            return -1;
+        }
+        else {
+            if (first->suffix > second->suffix) {
+                return 1;
+            }
+            else {
+                if (first->suffix < second->suffix) {
+                    return -1;
+                }
+                else {
+                    return 0;
+                }
+            }
+        }
+    }
 
 }

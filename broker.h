@@ -22,30 +22,14 @@
 #ifndef OCTOPUS_BROKER_H_
 #define OCTOPUS_BROKER_H_
 
-#include"on_give.h"
-#include"on_receive.h"
 #include"update.h"
-#include"balance.h"
-#include"events.h"
 #include"nodes.h"
-#include"actions.h"
 #include"zookeeper.h"
-#include"sleep.h"
-#include"compute.h"
 
 
 
 
 //TODO I havent yet provided a destructor function
-struct broker_t
-{
-    zhandle_t *zh;
-    oconfig_t *config;
-};
-
-typedef struct broker_t broker_t;
-
-void broker_init (broker_t ** broker, zhandle_t * zh, oconfig_t * config,);
 
 void *broker_fn (void *arg);
 

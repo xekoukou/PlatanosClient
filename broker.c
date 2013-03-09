@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include"worker.h"
+#include"broker.h"
 
 //TODO this is arbitrary
 #define ONGOING_TIMEOUT 4000
@@ -48,7 +48,7 @@ add_node (update_t * update, zmsg_t * msg, int db)
     frame = zmsg_next (msg);
     memcpy (&st_piece, zframe_data (frame), zframe_size (frame));
     frame = zmsg_next (msg);
-    memcpy (bind_point_db, zframe_data (frame), zframe_size (frame));
+    memcpy (bind_point, zframe_data (frame), zframe_size (frame));
 
 
     if (db) {
@@ -58,9 +58,7 @@ add_node (update_t * update, zmsg_t * msg, int db)
 //connect to the node
 
         int rc;
-        rc = zsocket_connect (update->compute->socket_nb, "%s", bind_point);
-        assert (rc == 0);
-        rc = zsocket_connect (update->compute->socket_wb, "%s", bind_point);
+        rc = zsocket_connect (update->socket, "%s", bind_point);
         assert (rc == 0);
 
 
@@ -69,17 +67,16 @@ add_node (update_t * update, zmsg_t * msg, int db)
                  "\nbroker_db_add_node\nstart:%d\nkey:%s\nn_pieces:%d\nst_piece:%lu",
                  start, key, n_pieces, st_piece);
 
-        db_node_init (&node, key, n_pieces, st_piece, bind_point_db);
+        db_node_init (&node, key, n_pieces, st_piece, bind_point);
 
 //update router object
 //this should always happen after the prev step
         assert (1 == router_add (update->db_router, node));
     }
     else {
+        char bind_point_wb[50];
         frame = zmsg_next (msg);
         memcpy (bind_point_wb, zframe_data (frame), zframe_size (frame));
-        frame = zmsg_next (msg);
-        memcpy (bind_point_bl, zframe_data (frame), zframe_size (frame));
 
 
         zmsg_destroy (&msg);
@@ -87,11 +84,9 @@ add_node (update_t * update, zmsg_t * msg, int db)
 //connect to the node
 
         int rc;
-        rc = zsocket_connect (update->compute->socket_nb, "%s", bind_point);
+        rc = zsocket_connect (update->socket, "%s", bind_point);
         assert (rc == 0);
-        rc = zsocket_connect (update->compute->socket_wb, "%s", bind_point_wb);
-        assert (rc == 0);
-        rc = zsocket_connect (update->balance->router_bl, "%s", bind_point_bl);
+        rc = zsocket_connect (update->socket, "%s", bind_point_wb);
         assert (rc == 0);
 
 
@@ -99,8 +94,7 @@ add_node (update_t * update, zmsg_t * msg, int db)
                  "\nbroker_add_node\nstart:%d\nkey:%s\nn_pieces:%d\nst_piece:%lu",
                  start, key, n_pieces, st_piece);
 
-        node_init (&node, key, n_pieces, st_piece, bind_point_nb, bind_point_wb,
-                   bind_point_bl);
+        node_init (&node, key, n_pieces, st_piece, bind_point, bind_point_wb);
 
 //update router object
 //this should always happen after the prev step
@@ -110,7 +104,7 @@ add_node (update_t * update, zmsg_t * msg, int db)
 }
 
 void
-db_update_st_piece (update_t * update, zmsg_t * msg, int db)
+update_st_piece (update_t * update, zmsg_t * msg, int db)
 {
     router_t *router;
     if (!db) {
@@ -144,7 +138,7 @@ db_update_st_piece (update_t * update, zmsg_t * msg, int db)
 }
 
 void
-db_update_n_pieces (update_t * update, zmsg_t * msg)
+update_n_pieces (update_t * update, zmsg_t * msg, int db)
 {
     router_t *router;
     if (!db) {
@@ -179,7 +173,7 @@ db_update_n_pieces (update_t * update, zmsg_t * msg)
 
 
 void
-db_remove_node (update_t * update, zmsg_t * msg)
+remove_node (update_t * update, zmsg_t * msg, int db)
 {
     router_t *router;
     if (!db) {
@@ -246,17 +240,17 @@ broker_update (update_t * update, void *sub)
 
     int db = 0;
 
-    fprintf (stderr, "\nworker_update:I have received a sub msg");
+    fprintf (stderr, "\nbroker_update:I have received a sub msg");
     zframe_t *sub_frame = zmsg_pop (msg);
     zframe_destroy (&sub_frame);
 
-    zframe_t *db = zmsg_pop (msg);
-    if (strcmp ("db", (char *) zframe_data (db)) == 0) {
-        zframe_destroy (&db);
+    zframe_t *db_frame = zmsg_pop (msg);
+    if (strcmp ("db", (char *) zframe_data (db_frame)) == 0) {
+        zframe_destroy (&db_frame);
         db = 1;
     }
     else {
-        zframe_destroy (&db);
+        zframe_destroy (&db_frame);
 
         zframe_t *id = zmsg_pop (msg);
         if (memcmp (zframe_data (id), &(update->id), sizeof (unsigned int)) ==
@@ -266,10 +260,11 @@ broker_update (update_t * update, void *sub)
             zframe_destroy (&id);
             zmsg_destroy (&msg);
             fprintf (stderr,
-                     "\nworker_update:It was a previous update, resending confirmation");
+                     "\nbroker_update:It was a previous update, resending confirmation");
 
         }
         else {
+            zframe_t *frame = zmsg_pop (msg);
             if (memcmp
                 (zframe_data (frame), "remove_node",
                  zframe_size (frame)) == 0) {
@@ -314,7 +309,7 @@ broker_update (update_t * update, void *sub)
 
             zframe_send (&id, update->dealer, 0);
             fprintf (stderr,
-                     "\nworker_update:I have sent confirmation to sub msg");
+                     "\nbroker_update:I have sent confirmation to sub msg");
 
         }
     }
@@ -329,7 +324,6 @@ broker_fn (void *arg)
 {
     zctx_t *ctx = zctx_new ();
 
-    broker_t *worker = (broker_t *) arg;
 
     int rc;
 //update infrastructure
@@ -354,7 +348,7 @@ broker_fn (void *arg)
     void *router_back = zsocket_new (ctx, ZMQ_ROUTER);
     void *router_front = zsocket_new (ctx, ZMQ_ROUTER);
     void *dealer_back = zsocket_new (ctx, ZMQ_DEALER);
-    void *router_front = zsocket_new (ctx, ZMQ_DEALER);
+    void *dealer_front = zsocket_new (ctx, ZMQ_DEALER);
 
 
 //router object
@@ -374,7 +368,7 @@ broker_fn (void *arg)
     update_t *update;
 
 
-    update_init (&update, dealer, router, db_router);
+    update_init (&update, dealer, router, db_router, router_back);
 
     zmq_pollitem_t pollitems[3] = { {sub, 0, ZMQ_POLLIN}
     ,
@@ -382,7 +376,7 @@ broker_fn (void *arg)
      ZMQ_POLLIN},
     {dealer_front, 0, ZMQ_POLLIN}
     };
-    fprintf (stderr, "\nworker with id:%s ready.", worker->id);
+
 //main loop
     while (1) {
         rc = zmq_poll (pollitems, 3, -1);
@@ -399,15 +393,4 @@ broker_fn (void *arg)
             broker_backward ();
         }
     }
-}
-
-
-void
-broker_init (broker_t ** broker, zhandle_t * zh, oconfig_t * config)
-{
-
-    *broker = malloc (sizeof (worker_t));
-    (*broker)->zh = zh;
-    (*broker)->config = config;
-
 }

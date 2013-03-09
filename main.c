@@ -45,12 +45,9 @@ main ()
 
     ozookeeper_init (&ozookeeper, config, ctx);
 
-    broker_t *broker;
-    broker_init (&broker, ozookeeper);
-
     ozookeeper_getconfig (ozookeeper);
 
-    broker_fn (broker);
+    broker_fn (NULL);
 
 
     return 0;
