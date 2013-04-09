@@ -22,6 +22,12 @@
 #define OCTOPUS_NODES_H_
 
 #include"hash/khash.h"
+
+struct node_t;
+typedef struct node_t node_t;
+
+KHASH_MAP_INIT_STR (nodes_t, node_t *);
+
 #include"node.h"
 
 void nodes_init (khash_t (nodes_t) ** nodes);

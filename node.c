@@ -29,15 +29,14 @@ node_piece (char *key, unsigned long pnumber, char *result)
 
 void
 node_init (node_t ** node, char *key, int n_pieces,
-           unsigned long st_piece, char *bind_point_nb, char *bind_point_wb)
+           unsigned long st_piece, platanos_node_t *platanos_node)
 {
 
     *node = malloc (sizeof (node_t));
     strcpy ((*node)->key, key);
     (*node)->n_pieces = n_pieces;
     (*node)->st_piece = st_piece;
-    strcpy ((*node)->bind_point_nb, bind_point_nb);
-    strcpy ((*node)->bind_point_wb, bind_point_wb);
+    (*node)->platanos_node=platanos_node;
 
 }
 
@@ -63,3 +62,13 @@ node_dup (node_t * node)
     memcpy (new_node, node, sizeof (node_t));
     return new_node;
 }
+
+void
+node_destroy (node_t ** node)
+{
+
+    platanos_node_destroy (&((*node)->platanos_node));
+    free (*node);
+    *node = NULL;
+}
+

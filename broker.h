@@ -25,6 +25,7 @@
 #include"update.h"
 #include"nodes.h"
 #include"zookeeper.h"
+#include"api/platanos_client.h"
 
 
 

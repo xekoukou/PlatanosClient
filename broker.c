@@ -47,18 +47,19 @@ add_node (update_t * update, zmsg_t * msg, int db)
     memcpy (&n_pieces, zframe_data (frame), zframe_size (frame));
     frame = zmsg_next (msg);
     memcpy (&st_piece, zframe_data (frame), zframe_size (frame));
-    frame = zmsg_next (msg);
-    memcpy (bind_point, zframe_data (frame), zframe_size (frame));
 
 
     if (db) {
+    frame = zmsg_next (msg);
+    memcpy (bind_point, zframe_data (frame), zframe_size (frame));
 
         zmsg_destroy (&msg);
 
 //connect to the node
 
         int rc;
-        rc = zsocket_connect (update->socket, "%s", bind_point);
+        rc = zsocket_connect (update->router_back, "%s", bind_point);
+        rc = zsocket_connect (update->dealer_back, "%s", bind_point);
         assert (rc == 0);
 
 
@@ -74,27 +75,17 @@ add_node (update_t * update, zmsg_t * msg, int db)
         assert (1 == router_add (update->db_router, node));
     }
     else {
-        char bind_point_wb[50];
-        frame = zmsg_next (msg);
-        memcpy (bind_point_wb, zframe_data (frame), zframe_size (frame));
-
-
-        zmsg_destroy (&msg);
 
 //connect to the node
 
-        int rc;
-        rc = zsocket_connect (update->socket, "%s", bind_point);
-        assert (rc == 0);
-        rc = zsocket_connect (update->socket, "%s", bind_point_wb);
-        assert (rc == 0);
+    platanos_node_t *platanos_node = platanos_connect (update, msg);
 
 
         fprintf (stderr,
                  "\nbroker_add_node\nstart:%d\nkey:%s\nn_pieces:%d\nst_piece:%lu",
                  start, key, n_pieces, st_piece);
 
-        node_init (&node, key, n_pieces, st_piece, bind_point, bind_point_wb);
+        node_init (&node, key, n_pieces, st_piece,platanos_node);
 
 //update router object
 //this should always happen after the prev step
@@ -360,7 +351,7 @@ broker_fn (void *arg)
     update_t *update;
 
 
-    update_init (&update, dealer, router, db_router, router_back);
+    update_init (&update, dealer, router, db_router, router_back,dealer_back);
 
     zmq_pollitem_t pollitems[3] = { {sub, 0, ZMQ_POLLIN}
     ,

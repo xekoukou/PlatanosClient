@@ -35,6 +35,8 @@
 #include "nodes.h"
 
 
+struct node_t;
+typedef struct node_t node_t;
 
 
 struct hash_t

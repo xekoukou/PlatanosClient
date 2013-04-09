@@ -124,12 +124,14 @@ ozookeeper_zhandle (ozookeeper_t * ozookeeper, zhandle_t ** zh)
 
 
 void
-ozookeeper_destroy (ozookeeper_t * ozookeeper)
+ozookeeper_destroy (ozookeeper_t ** ozookeeper)
 {
-    zookeeper_close (ozookeeper->zh);
-    oconfig_destroy (ozookeeper->config);
-    oz_updater_destroy (&(ozookeeper->updater));
-    free (ozookeeper);
+    zookeeper_close ((*ozookeeper)->zh);
+    oconfig_destroy ((*ozookeeper)->config);
+    oz_updater_destroy (&((*ozookeeper)->updater));
+    free (*ozookeeper);
+    *ozookeeper = NULL;
+
 }
 
 
@@ -245,7 +247,7 @@ ozookeeper_update_delete_node (ozookeeper_t * ozookeeper, char *key)
 void
 ozookeeper_update_add_node (ozookeeper_t * ozookeeper, int db, int start,
                             char *key, int n_pieces, unsigned long st_piece,
-                            char *bind_point_nb, char *bind_point_wb)
+                            char **bind_points, int size)
 {
     zmsg_t *msg = zmsg_new ();
     zmsg_add (msg, zframe_new ("add_node", strlen ("add_node") + 1));
@@ -253,15 +255,20 @@ ozookeeper_update_add_node (ozookeeper_t * ozookeeper, int db, int start,
     zmsg_add (msg, zframe_new (key, strlen (key) + 1));
     zmsg_add (msg, zframe_new (&n_pieces, sizeof (int)));
     zmsg_add (msg, zframe_new (&st_piece, sizeof (unsigned long)));
-    zmsg_add (msg, zframe_new (bind_point_nb, strlen (bind_point_nb) + 1));
-    if (!db) {
-        zmsg_add (msg, zframe_new (bind_point_wb, strlen (bind_point_wb) + 1));
+
+    int i;
+    for (i = 0; i < size; i++) {
+        zmsg_add (msg,
+                  zframe_new (bind_points[i], strlen (bind_points[i]) + 1));
+        free (bind_points[i]);
     }
+    free (bind_points);
 
     fprintf (stderr,
              "\nzookeeper_add_node\nkey:%s\nn_pieces:%d\nst_piece:%lu", key,
              n_pieces, st_piece);
     ozookeeper_update (ozookeeper, &msg, db);
+
 }
 
 
@@ -318,8 +325,8 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
     int buffer_len;
     unsigned long st_piece;
     int n_pieces;
-    char bind_point_nb[50];
-    char bind_point_wb[50];
+    char **bind_points;
+    int size;
     struct Stat stat;
 
 
@@ -349,11 +356,16 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
 
         if (db) {
 
+            bind_points = malloc (sizeof (char *));
+            bind_points[0] = malloc (50);
+            size = 1;
+
+
             buffer_len = 1000;
             sprintf (path, "/%s/computers/%s/db_nodes/%s/bind_point",
                      octopus, comp_name, res_name);
             result =
-                zoo_get (ozookeeper->zh, path, 0, bind_point_nb, &buffer_len,
+                zoo_get (ozookeeper->zh, path, 0, bind_points[0], &buffer_len,
                          &stat);
 
             assert (result == ZOK);
@@ -361,28 +373,13 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
         }
         else {
 
-            buffer_len = 1000;
-            sprintf (path, "/%s/computers/%s/worker_nodes/%s/bind_point_nb",
-                     octopus, comp_name, res_name);
-            result =
-                zoo_get (ozookeeper->zh, path, 0, bind_point_nb, &buffer_len,
-                         &stat);
-
-            assert (result == ZOK);
-
-            buffer_len = 1000;
-            sprintf (path, "/%s/computers/%s/worker_nodes/%s/bind_point_wb",
-                     octopus, comp_name, res_name);
-            result =
-                zoo_get (ozookeeper->zh, path, 0, bind_point_wb, &buffer_len,
-                         &stat);
-
-            assert (result == ZOK);
+            platanos_online_bind_points (ozookeeper->zh, octopus, comp_name, res_name,
+                                  &bind_points, &size);
 
         }
     }
 
-    sprintf (path, "%s%s", comp_name, res_name);
+    sprintf (path, "%s/%s", comp_name, res_name);
 
 
 
@@ -397,7 +394,7 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
     if (online) {
 
         ozookeeper_update_add_node (ozookeeper, db, start, path, n_pieces,
-                                    st_piece, bind_point_nb, bind_point_wb);
+                                    st_piece, bind_points,size);
 
         if (db) {
             ozookeeper->updater.db_online[m][n] = 1;
@@ -588,7 +585,7 @@ w_st_piece (zhandle_t * zh, int type,
 
                 assert (result == ZOK);
 
-                sprintf (spath, "%s%s", comp_name, res_name);
+                sprintf (spath, "%s/%s", comp_name, res_name);
                 ozookeeper_update_st_piece (ozookeeper, db, spath, st_piece);
 
 
@@ -703,7 +700,7 @@ w_n_pieces (zhandle_t * zh, int type,
 
                 assert (result == ZOK);
 
-                sprintf (spath, "%s%s", comp_name, res_name);
+                sprintf (spath, "%s/%s", comp_name, res_name);
                 ozookeeper_update_n_pieces (ozookeeper, db, spath, n_pieces);
 
 
@@ -826,7 +823,7 @@ resources (ozookeeper_t * ozookeeper, char *path, int start)
             if (db) {
                 char *res = zlist_first (db_old);
                 while (res) {
-                    sprintf (spath, "%s%s", comp_name, res);
+                    sprintf (spath, "%s/%s", comp_name, res);
                     ozookeeper_update_delete_node (ozookeeper, spath);
                     res = zlist_next (db_old);
                 }
