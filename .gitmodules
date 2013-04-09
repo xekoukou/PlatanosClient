@@ -1,0 +1,3 @@
+[submodule "platanos_api"]
+	path = platanos_api
+	url = https://github.com/xekoukou/platanos_api.git
