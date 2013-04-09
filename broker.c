@@ -78,7 +78,7 @@ add_node (update_t * update, zmsg_t * msg, int db)
 
 //connect to the node
 
-    platanos_node_t *platanos_node = platanos_connect (update, msg);
+    platanos_node_t *platanos_node = platanos_client_connect (update, msg);
 
 
         fprintf (stderr,
@@ -351,7 +351,7 @@ broker_fn (void *arg)
     update_t *update;
 
 
-    update_init (&update, dealer, router, db_router, router_back,dealer_back);
+    update_init (&update, dealer, router, db_router, router_back, dealer_back);
 
     zmq_pollitem_t pollitems[3] = { {sub, 0, ZMQ_POLLIN}
     ,

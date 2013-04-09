@@ -49,7 +49,7 @@ db_node_init (node_t ** node, char *key, int n_pieces,
     strcpy ((*node)->key, key);
     (*node)->n_pieces = n_pieces;
     (*node)->st_piece = st_piece;
-    strcpy ((*node)->bind_point_nb, bind_point_db);
+    strcpy ((*node)->bind_point_db, bind_point_db);
 
 }
 

@@ -25,6 +25,9 @@
 
 #include"router.h"
 
+struct router_t;
+typedef struct router_t router_t;
+
 struct update_t
 {
     unsigned int id;            //the id of the previous update
@@ -38,7 +41,7 @@ struct update_t
 typedef struct update_t update_t;
 
 void update_init (update_t ** update, void *dealer, router_t * router,
-                  router_t * db_router, void *socket);
+                  router_t * db_router, void *router_back, void *dealer_back);
 
 
 

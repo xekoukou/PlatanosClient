@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include"hash/khash.h"
+#include"api/platanos_client.h"
 
 
 
