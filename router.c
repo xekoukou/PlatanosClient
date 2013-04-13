@@ -155,7 +155,7 @@ router_delete (struct router_t *router, node_t * node)
             }
         }
         nodes_delete (router->nodes, node->key);
-        node_destroy(&node);
+        node_destroy (&node);
     }
 }
 

@@ -222,12 +222,12 @@ ozookeeper_update (ozookeeper_t * ozookeeper, zmsg_t ** msg, int db)
 
 //IMPORTANT st_piece should not be changed when a node is offline
 void
-ozookeeper_update_remove_node (ozookeeper_t * ozookeeper, int db, char *key)
+ozookeeper_update_remove_node (ozookeeper_t * ozookeeper, char *key)
 {
     zmsg_t *msg = zmsg_new ();
     zmsg_add (msg, zframe_new ("remove_node", strlen ("remove_node") + 1));
     zmsg_add (msg, zframe_new (key, strlen (key) + 1));
-    ozookeeper_update (ozookeeper, &msg, db);
+    ozookeeper_update (ozookeeper, &msg, 0);
 }
 
 //this is used only by the database
@@ -270,6 +270,36 @@ ozookeeper_update_add_node (ozookeeper_t * ozookeeper, int db, int start,
     ozookeeper_update (ozookeeper, &msg, db);
 
 }
+
+//TODO check
+//this is done when a node goes online
+void
+ozookeeper_update_add_dead_node (ozookeeper_t * ozookeeper,
+                                 char *key, int n_pieces,
+                                 unsigned long st_piece, char **bind_points,
+                                 int size)
+{
+    zmsg_t *msg = zmsg_new ();
+    zmsg_add (msg, zframe_new ("add_dead_node", strlen ("add_dead_node") + 1));
+    zmsg_add (msg, zframe_new (key, strlen (key) + 1));
+    zmsg_add (msg, zframe_new (&n_pieces, sizeof (int)));
+    zmsg_add (msg, zframe_new (&st_piece, sizeof (unsigned long)));
+
+    int i;
+    for (i = 0; i < size; i++) {
+        zmsg_add (msg,
+                  zframe_new (bind_points[i], strlen (bind_points[i]) + 1));
+        free (bind_points[i]);
+    }
+    free (bind_points);
+
+    fprintf (stderr,
+             "\nzookeeper_add_dead_node\nkey:%s\nn_pieces:%d\nst_piece:%lu",
+             key, n_pieces, st_piece);
+    ozookeeper_update (ozookeeper, &msg, 1);
+
+}
+
 
 
 void
@@ -373,8 +403,8 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
         }
         else {
 
-            platanos_online_bind_points (ozookeeper->zh, octopus, comp_name, res_name,
-                                  &bind_points, &size);
+            platanos_online_bind_points (ozookeeper->zh, octopus, comp_name,
+                                         res_name, &bind_points, &size);
 
         }
     }
@@ -394,7 +424,7 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
     if (online) {
 
         ozookeeper_update_add_node (ozookeeper, db, start, path, n_pieces,
-                                    st_piece, bind_points,size);
+                                    st_piece, bind_points, size);
 
         if (db) {
             ozookeeper->updater.db_online[m][n] = 1;
@@ -409,13 +439,16 @@ online (ozookeeper_t * ozookeeper, int db, int online, int start,
         if (db) {
             if (ozookeeper->updater.db_online[m][n] == 1) {
                 ozookeeper->updater.db_online[m][n] = 0;
-                ozookeeper_update_remove_node (ozookeeper, db, path);
+                ozookeeper_update_add_node (ozookeeper, db, start, path,
+                                            n_pieces, st_piece, bind_points,
+                                            size);
+
             }
         }
         else {
             if (ozookeeper->updater.w_online[m][n] == 1) {
                 ozookeeper->updater.w_online[m][n] = 0;
-                ozookeeper_update_remove_node (ozookeeper, db, path);
+                ozookeeper_update_remove_node (ozookeeper, path);
             }
 
         }

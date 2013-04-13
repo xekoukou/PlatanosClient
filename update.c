@@ -22,7 +22,7 @@
 
 void
 update_init (update_t ** update, void *dealer, router_t * router,
-             router_t * db_router, void *router_back, void * dealer_back)
+             router_t * db_router, void *router_back, void *dealer_back)
 {
     *update = malloc (sizeof (update_t));
     (*update)->id = 0;

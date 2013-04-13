@@ -50,8 +50,8 @@ add_node (update_t * update, zmsg_t * msg, int db)
 
 
     if (db) {
-    frame = zmsg_next (msg);
-    memcpy (bind_point, zframe_data (frame), zframe_size (frame));
+        frame = zmsg_next (msg);
+        memcpy (bind_point, zframe_data (frame), zframe_size (frame));
 
         zmsg_destroy (&msg);
 
@@ -69,6 +69,8 @@ add_node (update_t * update, zmsg_t * msg, int db)
                  start, key, n_pieces, st_piece);
 
         db_node_init (&node, key, n_pieces, st_piece, bind_point);
+        node_set_alive (node, 1);
+
 
 //update router object
 //this should always happen after the prev step
@@ -78,14 +80,14 @@ add_node (update_t * update, zmsg_t * msg, int db)
 
 //connect to the node
 
-    platanos_node_t *platanos_node = platanos_client_connect (update, msg);
+        platanos_node_t *platanos_node = platanos_client_connect (update, msg);
 
 
         fprintf (stderr,
                  "\nbroker_add_node\nstart:%d\nkey:%s\nn_pieces:%d\nst_piece:%lu",
                  start, key, n_pieces, st_piece);
 
-        node_init (&node, key, n_pieces, st_piece,platanos_node);
+        node_init (&node, key, n_pieces, st_piece, platanos_node);
 
 //update router object
 //this should always happen after the prev step
@@ -93,6 +95,49 @@ add_node (update_t * update, zmsg_t * msg, int db)
 
     }
 }
+
+
+void
+add_dead_node (update_t * update, zmsg_t * msg)
+{
+    node_t *node;
+    char key[100];
+    int n_pieces;
+    unsigned long st_piece;
+    char bind_point[50];
+
+    zframe_t *frame = zmsg_first (msg);
+    memcpy (key, zframe_data (frame), zframe_size (frame));
+    frame = zmsg_next (msg);
+    memcpy (&n_pieces, zframe_data (frame), zframe_size (frame));
+    frame = zmsg_next (msg);
+    memcpy (&st_piece, zframe_data (frame), zframe_size (frame));
+
+
+    frame = zmsg_next (msg);
+    memcpy (bind_point, zframe_data (frame), zframe_size (frame));
+
+    zmsg_destroy (&msg);
+
+//TODO disconnect to the node
+
+    fprintf (stderr,
+             "\nbroker_db_add_dead_node\nkey:%s\nn_pieces:%d\nst_piece:%lu",
+             key, n_pieces, st_piece);
+
+    if (node != NULL) {
+        node_set_alive (node, 0);
+    }
+    else {
+
+        db_node_init (&node, key, n_pieces, st_piece, bind_point);
+        node_set_alive (node, 0);
+//update router object
+        assert (1 == router_add (update->db_router, node));
+    }
+
+}
+
 
 void
 update_st_piece (update_t * update, zmsg_t * msg, int db)
@@ -164,15 +209,10 @@ update_n_pieces (update_t * update, zmsg_t * msg, int db)
 
 
 void
-remove_node (update_t * update, zmsg_t * msg, int db)
+remove_node (update_t * update, zmsg_t * msg)
 {
     router_t *router;
-    if (!db) {
-        router = update->router;
-    }
-    else {
-        router = update->db_router;
-    }
+    router = update->router;
 
     node_t *node;
     char key[100];
@@ -253,35 +293,43 @@ broker_update (update_t * update, void *sub)
         zframe_t *frame = zmsg_pop (msg);
         if (memcmp
             (zframe_data (frame), "remove_node", zframe_size (frame)) == 0) {
-            remove_node (update, msg, db);
+            remove_node (update, msg);
         }
         else {
             if (memcmp
-                (zframe_data (frame), "add_node", zframe_size (frame)) == 0) {
-                add_node (update, msg, db);
+                (zframe_data (frame), "add_dead_node",
+                 zframe_size (frame)) == 0) {
+                add_dead_node (update, msg);
             }
+
             else {
                 if (memcmp
-                    (zframe_data (frame), "st_piece",
+                    (zframe_data (frame), "add_node",
                      zframe_size (frame)) == 0) {
-                    update_st_piece (update, msg, db);
+                    add_node (update, msg, db);
                 }
                 else {
                     if (memcmp
-                        (zframe_data (frame), "n_pieces",
+                        (zframe_data (frame), "st_piece",
                          zframe_size (frame)) == 0) {
-                        update_n_pieces (update, msg, db);
+                        update_st_piece (update, msg, db);
                     }
                     else {
-
                         if (memcmp
-                            (zframe_data (frame), "delete_node",
+                            (zframe_data (frame), "n_pieces",
                              zframe_size (frame)) == 0) {
-                            db_delete_node (update, msg);
+                            update_n_pieces (update, msg, db);
                         }
+                        else {
 
+                            if (memcmp
+                                (zframe_data (frame), "delete_node",
+                                 zframe_size (frame)) == 0) {
+                                db_delete_node (update, msg);
+                            }
+
+                        }
                     }
-
 
                 }
             }

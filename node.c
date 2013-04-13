@@ -29,14 +29,14 @@ node_piece (char *key, unsigned long pnumber, char *result)
 
 void
 node_init (node_t ** node, char *key, int n_pieces,
-           unsigned long st_piece, platanos_node_t *platanos_node)
+           unsigned long st_piece, platanos_node_t * platanos_node)
 {
 
     *node = malloc (sizeof (node_t));
     strcpy ((*node)->key, key);
     (*node)->n_pieces = n_pieces;
     (*node)->st_piece = st_piece;
-    (*node)->platanos_node=platanos_node;
+    (*node)->platanos_node = platanos_node;
 
 }
 
@@ -71,4 +71,3 @@ node_destroy (node_t ** node)
     free (*node);
     *node = NULL;
 }
-

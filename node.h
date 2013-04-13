@@ -33,7 +33,7 @@ struct node_t
 {
     unsigned long st_piece;
     int n_pieces;
-    char key[18];              //key is the routing_address or the subscription subject that we will accept from this node.
+    char key[18];               //key is the routing_address or the subscription subject that we will accept from this node.
     int alive;                  //this is only used in a db_routing, all worker nodes received 
     //are assumed alive. The reason for this is that db nodes need 
     //to remain the same for each vertex despite the failures
@@ -54,8 +54,7 @@ typedef struct node_t node_t;
 void node_piece (char *key, unsigned long pnumber, char *result);
 
 void node_init (node_t ** node, char *key, int n_pieces,
-                unsigned long st_piece,
-                platanos_node_t *platanos_node);
+                unsigned long st_piece, platanos_node_t * platanos_node);
 
 void
 db_node_init (node_t ** node, char *key, int n_pieces,
